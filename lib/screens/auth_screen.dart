@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:uni_work_x_01/screens/admin_dashboard.dart';
+import 'package:uni_work_x_01/screens/Admin_dashboard.dart';
 import 'package:uni_work_x_01/screens/company_dashboard_screen.dart';
+
 import 'main_screen.dart';
 import 'company_register_screen.dart';
 
@@ -637,7 +638,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         if (email == 'jitendersingh95265@gmail.com' && password == '1354') {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+            MaterialPageRoute(builder: (_) => PendingCompaniesScreen()),
           );
         } else {
           _showError('Invalid admin credentials.');
