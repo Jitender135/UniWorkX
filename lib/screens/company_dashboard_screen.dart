@@ -3,6 +3,14 @@ import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'auth_screen.dart';  // Replace with your actual Auth/Login screen file
 
+// Define consistent color palette
+class AppColors {
+  static const Color primary = Color(0xFF3B82F6);      // #3B82F6
+  static const Color primaryDark = Color(0xFF1E40AF);   // #1E40AF
+  static const Color primaryLight = Color(0xFFDBEAFE);  // Light blue for backgrounds
+  static const Color primaryUltraLight = Color(0xFFF0F7FF); // Ultra light blue
+}
+
 class CompanyDashboardScreen extends StatefulWidget {
   final String email;
   final bool showCongratsMessage;
@@ -128,7 +136,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen>
         backgroundColor: Colors.grey[50],
         body: Center(
           child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Colors.blue[600]!),
+            valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
           ),
         ),
       );
@@ -150,7 +158,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen>
                   child: Container(
                     padding: EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.blue[600],
+                      color: AppColors.primary,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.business, color: Colors.white, size: 20),
@@ -191,8 +199,8 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen>
               PopupMenuButton(
                 icon: CircleAvatar(
                   radius: 16,
-                  backgroundColor: Colors.blue[100],
-                  child: Icon(Icons.person, size: 18, color: Colors.blue[600]),
+                  backgroundColor: AppColors.primaryLight,
+                  child: Icon(Icons.person, size: 18, color: AppColors.primary),
                 ),
                 itemBuilder: (context) => [
                   PopupMenuItem(
@@ -251,7 +259,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen>
               }
             },
             type: BottomNavigationBarType.fixed,
-            selectedItemColor: Colors.blue[600],
+            selectedItemColor: AppColors.primary,
             unselectedItemColor: Colors.grey[600],
             backgroundColor: Colors.transparent,
             elevation: 0,
@@ -281,7 +289,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen>
         ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: _showAddJobModal,
-          backgroundColor: Colors.blue[600],
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           icon: Icon(Icons.add),
           label: Text('Add Job'),
@@ -304,7 +312,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen>
             duration: Duration(milliseconds: 300),
             child: Row(
               children: [
-                Expanded(child: _buildStatsCard('Active Jobs', '8', Icons.work, Colors.blue)),
+                Expanded(child: _buildStatsCard('Active Jobs', '8', Icons.work, AppColors.primary)),
                 SizedBox(width: 12),
                 Expanded(child: _buildStatsCard('Applications', '156', Icons.people, Colors.green)),
               ],
@@ -511,7 +519,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen>
         ),
         TextButton(
           onPressed: () {},
-          child: Text('View All'),
+          child: Text('View All', style: TextStyle(color: AppColors.primary)),
         ),
       ],
     );
@@ -546,7 +554,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen>
             'UI/UX Designer role',
             '1 hour ago',
             Icons.calendar_today,
-            Colors.blue,
+            AppColors.primary,
           ),
           Divider(height: 24),
           _buildActivityItem(
@@ -594,7 +602,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen>
           child: _buildQuickActionCard(
             'Post Job',
             Icons.add_circle_outline,
-            Colors.blue,
+            AppColors.primary,
             _showAddJobModal,
           ),
         ),
@@ -762,7 +770,7 @@ class _CompanyDashboardScreenState extends State<CompanyDashboardScreen>
   }
 }
 
-// Add Job Screen (Modal) - Also fixed for consistency
+// Add Job Screen (Modal) - Updated with consistent blue colors
 class AddJobScreen extends StatefulWidget {
   @override
   _AddJobScreenState createState() => _AddJobScreenState();
@@ -799,7 +807,7 @@ class _AddJobScreenState extends State<AddJobScreen> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: ColorScheme.light(
-              primary: Colors.blue[600]!,
+              primary: AppColors.primary,
             ),
           ),
           child: child!,
@@ -828,172 +836,312 @@ class _AddJobScreenState extends State<AddJobScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+        appBar: AppBar(
         title: Text('Add New Job'),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black87,
-        elevation: 0,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+    backgroundColor: Colors.white,
+    foregroundColor: Colors.black87,
+    elevation: 0,
+    actions: [
+    TextButton(
+    onPressed: () => Navigator.pop(context),
+    child: Text('Cancel', style: TextStyle(color: AppColors.primary)),
+    ),
+    ],
+    ),
+    body: Form(
+    key: _formKey,
+    child: SingleChildScrollView(
+    padding: EdgeInsets.all(16),
+    physics: BouncingScrollPhysics(),
+    child: Column(
+    children: [
+    TextFormField(
+    controller: _titleController,
+    decoration: InputDecoration(
+    labelText: 'Job Title',
+    prefixIcon: Icon(Icons.work_outline, color: AppColors.primary),
+    hintText: 'e.g., Research Assistant - AI Lab',
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: AppColors.primary, width: 2),
+    ),
+    ),
+    validator: (value) => value!.isEmpty ? 'Please enter job title' : null,
+    ),
+    SizedBox(height: 16),
+
+    DropdownButtonFormField<String>(
+    value: _category,
+    decoration: InputDecoration(
+    labelText: 'Category',
+    prefixIcon: Icon(Icons.category, color: AppColors.primary),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: AppColors.primary, width: 2),
+    ),
+    ),
+    items: ['Part-time', 'Research', 'Internship', 'Project-based', 'Remote']
+        .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
+        .toList(),
+    onChanged: (value) => setState(() => _category = value!),
+    ),
+    SizedBox(height: 16),
+
+    Row(
+    children: [
+    Expanded(
+    child: DropdownButtonFormField<String>(
+    value: _location,
+    decoration: InputDecoration(
+    labelText: 'Location',
+    prefixIcon: Icon(Icons.location_on_outlined, color: AppColors.primary),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: AppColors.primary, width: 2),
+    ),
+    ),
+    items: ['On-campus', 'Remote', 'Hybrid', 'Off-campus']
+        .map((loc) => DropdownMenuItem(value: loc, child: Text(loc)))
+        .toList(),
+    onChanged: (value) => setState(() => _location = value!),
+    ),
+    ),
+    SizedBox(width: 16),
+    Expanded(
+    child: DropdownButtonFormField<String>(
+    value: _duration,
+    decoration: InputDecoration(
+    labelText: 'Duration',
+    prefixIcon: Icon(Icons.access_time, color: AppColors.primary),
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: AppColors.primary, width: 2),
+    ),
+    ),
+    items: ['1 month', '2 months', '3 months', '6 months', 'Flexible']
+        .map((dur) => DropdownMenuItem(value: dur, child: Text(dur)))
+        .toList(),
+    onChanged: (value) => setState(() => _duration = value!),
+    ),
+    ),
+    ],
+    ),
+    SizedBox(height: 16),
+
+    TextFormField(
+    controller: _payController,
+    decoration: InputDecoration(
+    labelText: 'Pay/Compensation',
+    prefixIcon: Icon(Icons.attach_money, color: AppColors.primary),
+    hintText: 'e.g., ₹15,000/month or ₹500/hour',
+    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(12),
+    borderSide: BorderSide(color: AppColors.primary, width: 2),
+    ),
+    ),
+    validator: (value) => value!.isEmpty ? 'Please enter compensation' : null,
+    ),
+    SizedBox(height: 16),
+      TextFormField(
+        controller: _requirementsController,
+        maxLines: 4,
+        decoration: InputDecoration(
+          labelText: 'Requirements & Qualifications',
+          prefixIcon: Icon(Icons.list_alt_outlined, color: AppColors.primary),
+          hintText: 'List required skills, qualifications, year of study, etc.',
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: AppColors.primary, width: 2),
           ),
-        ],
+        ),
+        validator: (value) => value!.isEmpty ? 'Please enter requirements' : null,
       ),
-      body: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
+      SizedBox(height: 16),
+
+      // Application Deadline
+      GestureDetector(
+        onTap: _pickDeadline,
+        child: Container(
           padding: EdgeInsets.all(16),
-          physics: BouncingScrollPhysics(),
-          child: Column(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey[400]!),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
             children: [
-              TextFormField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  labelText: 'Job Title',
-                  prefixIcon: Icon(Icons.work_outline),
-                  hintText: 'e.g., Research Assistant - AI Lab',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                validator: (value) => value!.isEmpty ? 'Please enter job title' : null,
-              ),
-              SizedBox(height: 16),
-
-              DropdownButtonFormField<String>(
-                value: _category,
-                decoration: InputDecoration(
-                  labelText: 'Category',
-                  prefixIcon: Icon(Icons.category),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                items: ['Part-time', 'Research', 'Internship', 'Project-based', 'Remote']
-                    .map((cat) => DropdownMenuItem(value: cat, child: Text(cat)))
-                    .toList(),
-                onChanged: (value) => setState(() => _category = value!),
-              ),
-              SizedBox(height: 16),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _location,
-                      decoration: InputDecoration(
-                        labelText: 'Location',
-                        prefixIcon: Icon(Icons.location_on_outlined),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              Icon(Icons.calendar_today, color: AppColors.primary),
+              SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Application Deadline',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
                       ),
-                      items: ['On-campus', 'Remote', 'Hybrid', 'Off-campus']
-                          .map((loc) => DropdownMenuItem(value: loc, child: Text(loc)))
-                          .toList(),
-                      onChanged: (value) => setState(() => _location = value!),
                     ),
-                  ),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      value: _duration,
-                      decoration: InputDecoration(
-                        labelText: 'Duration',
-                        prefixIcon: Icon(Icons.access_time),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    SizedBox(height: 2),
+                    Text(
+                      _applicationDeadline != null
+                          ? DateFormat('dd MMM yyyy').format(_applicationDeadline!)
+                          : 'Select deadline date',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: _applicationDeadline != null
+                            ? Colors.black87
+                            : Colors.grey[500],
                       ),
-                      items: ['1 month', '2 months', '3 months', '6 months', 'Flexible']
-                          .map((dur) => DropdownMenuItem(value: dur, child: Text(dur)))
-                          .toList(),
-                      onChanged: (value) => setState(() => _duration = value!),
                     ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-
-              TextFormField(
-                controller: _payController,
-                decoration: InputDecoration(
-                  labelText: 'Pay/Compensation',
-                  prefixIcon: Icon(Icons.attach_money),
-                  hintText: 'e.g., ₹15,000/month or ₹500/hour',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                validator: (value) => value!.isEmpty ? 'Please enter compensation' : null,
-              ),
-              SizedBox(height: 16),
-
-              TextFormField(
-                controller: _descriptionController,
-                maxLines: 5,
-                decoration: InputDecoration(
-                  labelText: 'Job Description',
-                  prefixIcon: Icon(Icons.description_outlined),
-                  hintText: 'Describe the job responsibilities, expectations, etc.',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                validator: (value) => value!.isEmpty ? 'Please enter job description' : null,
-              ),
-              SizedBox(height: 16),
-
-              TextFormField(
-                controller: _requirementsController,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  labelText: 'Requirements & Skills',
-                  prefixIcon: Icon(Icons.list_alt_outlined),
-                  hintText: 'List required skills, qualifications...',
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                validator: (value) => value!.isEmpty ? 'Please enter requirements' : null,
-              ),
-              SizedBox(height: 16),
-
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.calendar_today_outlined),
-                title: Text(
-                  _applicationDeadline != null
-                      ? 'Deadline: ${DateFormat('dd MMM yyyy').format(_applicationDeadline!)}'
-                      : 'Select Application Deadline',
-                ),
-                trailing: ElevatedButton(
-                  onPressed: _pickDeadline,
-                  child: Text('Pick Date'),
+                  ],
                 ),
               ),
-              SizedBox(height: 32),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      if (_applicationDeadline == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Please select an application deadline.'),
-                            backgroundColor: Colors.redAccent,
-                          ),
-                        );
-                      } else {
-                        _postJob();
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue[600],
-                    foregroundColor: Colors.white,
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: Text(
-                    'Post Job',
-                    style: TextStyle(fontSize: 16),
-                  ),
-                ),
-              ),
+              Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
             ],
           ),
         ),
       ),
+      SizedBox(height: 24),
+
+      // Additional Options
+      Container(
+        padding: EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.primaryUltraLight,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.primaryLight),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Additional Options',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: AppColors.primaryDark,
+              ),
+            ),
+            SizedBox(height: 12),
+            CheckboxListTile(
+              value: true,
+              onChanged: (value) {},
+              title: Text('Send notifications to relevant students',
+                  style: TextStyle(fontSize: 14)),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              activeColor: AppColors.primary,
+            ),
+            CheckboxListTile(
+              value: false,
+              onChanged: (value) {},
+              title: Text('Make this job featured',
+                  style: TextStyle(fontSize: 14)),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              activeColor: AppColors.primary,
+            ),
+            CheckboxListTile(
+              value: true,
+              onChanged: (value) {},
+              title: Text('Allow students to apply directly',
+                  style: TextStyle(fontSize: 14)),
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              activeColor: AppColors.primary,
+            ),
+          ],
+        ),
+      ),
+      SizedBox(height: 32),
+
+      // Action Buttons
+      Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: () {
+                // Save as draft functionality
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Job saved as draft'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                Navigator.pop(context);
+              },
+              style: OutlinedButton.styleFrom(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                side: BorderSide(color: AppColors.primary),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'Save as Draft',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            flex: 2,
+            child: ElevatedButton(
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  if (_applicationDeadline == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Please select application deadline'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+                  _postJob();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 2,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.publish, size: 18),
+                  SizedBox(width: 8),
+                  Text(
+                    'Publish Job',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      SizedBox(height: 16),
+    ],
+    ),
+    ),
+    ),
     );
   }
 }
