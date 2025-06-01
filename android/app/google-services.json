@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "237626875654",
+    "project_id": "uniworkx-70002",
+    "storage_bucket": "uniworkx-70002.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:237626875654:android:af663c4ecc8902c1404887",
+        "android_client_info": {
+          "package_name": "com.example.uni_work_x.uni_work_x_01"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBxztdse2JL4k3885xfTB0edZepBnpym0M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
