@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/job.dart';
-import '../widgets/job_card.dart';
+import '../services/firestore_service.dart';
 import 'job_details_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -11,13 +12,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String selectedFilter = 'All';
-  final List<String> filters = ['All', 'Part-time', 'Research', 'Remote', 'My Dept', 'Urgent'];
+  final List<String> filters = ['All', 'Part-time', 'Research', 'Remote', 'Urgent'];
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final FirestoreService _firestoreService = FirestoreService();
 
-  bool _isHeaderCollapsed = false;
   late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
+
+  List<Job> _allJobs = [];
+  List<Job> _filteredJobs = [];
+  bool _isLoading = true;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -31,12 +37,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     );
     _fadeController.forward();
 
-    // Listen to scroll changes for collapsing header
-    _scrollController.addListener(() {
+    _searchController.addListener(() {
       setState(() {
-        _isHeaderCollapsed = _scrollController.offset > 100;
+        _searchQuery = _searchController.text;
+        _applyFilters();
       });
     });
+
+    _loadJobs();
   }
 
   @override
@@ -47,88 +55,62 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  final List<Job> jobs = [
-    Job(
-      title: 'Research Assistant - AI Lab',
-      company: 'Dr. Sarah Johnson, CS Department',
-      pay: '₹15,000/month',
-      location: 'On-campus',
-      duration: '3 months',
-      description: 'Help with data collection and analysis for machine learning research project. Perfect for CS students.',
-      tags: ['Python', 'Data Analysis', 'Research'],
-      isUrgent: false,
-    ),
-    Job(
-      title: 'Content Writer - Startup',
-      company: 'TechEd Solutions',
-      pay: '₹500/article',
-      location: 'Remote',
-      duration: 'Flexible',
-      description: 'Write engaging blog posts and social media content for ed-tech startup.',
-      tags: ['Writing', 'Social Media', 'Marketing'],
-      isUrgent: true,
-    ),
-    Job(
-      title: 'Event Management Intern',
-      company: 'Student Affairs Office',
-      pay: '₹8,000/month',
-      location: 'Campus',
-      duration: '2 months',
-      description: 'Help organize college fest and cultural events. Great networking opportunity!',
-      tags: ['Event Planning', 'Coordination', 'Leadership'],
-      isUrgent: false,
-    ),
-    Job(
-      title: 'Software Engineering Intern',
-      company: 'Innovatech Solutions',
-      pay: '₹15,000/month',
-      location: 'Remote',
-      duration: '3 months',
-      description: 'Assist in developing and testing mobile applications using Flutter.',
-      tags: ['Flutter', 'Mobile Development', 'Dart', 'Software Development'],
-      isUrgent: true,
-    ),
-    Job(
-      title: 'Backend Developer Intern',
-      company: 'CloudServe Inc.',
-      pay: '₹12,000/month',
-      location: 'Hybrid',
-      duration: '6 months',
-      description: 'Work on REST API development and database management using Node.js and MongoDB.',
-      tags: ['Node.js', 'API', 'MongoDB', 'Backend'],
-      isUrgent: false,
-    ),
-    Job(
-      title: 'Frontend Developer Intern',
-      company: 'Creative Solutions',
-      pay: '₹10,000/month',
-      location: 'Remote',
-      duration: '4 months',
-      description: 'Build responsive UI components with React and improve user experience.',
-      tags: ['React', 'JavaScript', 'CSS', 'Frontend'],
-      isUrgent: false,
-    ),
-    Job(
-      title: 'QA Automation Intern',
-      company: 'TechGear Labs',
-      pay: '₹14,000/month',
-      location: 'On-site',
-      duration: '3 months',
-      description: 'Develop and maintain automated test scripts using Selenium and Java.',
-      tags: ['QA', 'Automation Testing', 'Selenium', 'Java'],
-      isUrgent: false,
-    ),
-    Job(
-      title: 'DevOps Intern',
-      company: 'NextGen Tech',
-      pay: '₹16,000/month',
-      location: 'Remote',
-      duration: '5 months',
-      description: 'Assist with CI/CD pipelines and infrastructure automation using Docker and Kubernetes.',
-      tags: ['DevOps', 'Docker', 'Kubernetes', 'CI/CD'],
-      isUrgent: true,
-    ),
-  ];
+  void _loadJobs() {
+    _firestoreService.getActiveJobs().listen((snapshot) {
+      if (mounted) {
+        setState(() {
+          _allJobs = snapshot.docs
+              .map((doc) => Job.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+              .toList();
+          _applyFilters();
+          _isLoading = false;
+        });
+      }
+    }, onError: (error) {
+      print('Error loading jobs: $error');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    });
+  }
+
+  void _applyFilters() {
+    List<Job> filtered = List.from(_allJobs);
+
+    // Apply search filter
+    if (_searchQuery.isNotEmpty) {
+      filtered = filtered.where((job) =>
+      job.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          job.company.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          job.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          job.tags.any((tag) => tag.toLowerCase().contains(_searchQuery.toLowerCase()))).toList();
+    }
+
+    // Apply category filter
+    if (selectedFilter != 'All') {
+      switch (selectedFilter) {
+        case 'Urgent':
+          filtered = filtered.where((job) => job.isUrgent).toList();
+          break;
+        case 'Remote':
+          filtered = filtered.where((job) => job.location.toLowerCase().contains('remote')).toList();
+          break;
+        case 'Research':
+          filtered = filtered.where((job) =>
+          job.category.toLowerCase().contains('research') ||
+              job.tags.any((tag) => tag.toLowerCase().contains('research'))).toList();
+          break;
+        default:
+          filtered = filtered.where((job) => job.category == selectedFilter).toList();
+      }
+    }
+
+    setState(() {
+      _filteredJobs = filtered;
+    });
+  }
 
   String _getInitials(String name) {
     final parts = name.trim().split(' ');
@@ -136,20 +118,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return parts.take(2).map((e) => e.isNotEmpty ? e[0].toUpperCase() : '').join();
   }
 
-  List<Job> get filteredJobs {
-    if (selectedFilter == 'All') return jobs;
-    if (selectedFilter == 'Urgent') return jobs.where((job) => job.isUrgent).toList();
-    if (selectedFilter == 'Remote') return jobs.where((job) => job.location.toLowerCase().contains('remote')).toList();
-    if (selectedFilter == 'Research') return jobs.where((job) => job.tags.any((tag) => tag.toLowerCase().contains('research'))).toList();
-    return jobs;
-  }
-
   Future<void> _onRefresh() async {
-    // Simulate API call
-    await Future.delayed(Duration(seconds: 1));
-    setState(() {
-      // Refresh logic here
-    });
+    _loadJobs();
   }
 
   @override
@@ -167,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           controller: _scrollController,
           headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
             return [
-              // Collapsing Header
+              // App Header
               SliverAppBar(
                 expandedHeight: 280,
                 floating: false,
@@ -182,9 +152,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
+                          Color(0xFF1E40AF),
                           Color(0xFF2563EB),
                           Color(0xFF3B82F6),
-                          Color(0xFF60A5FA),
                         ],
                       ),
                       borderRadius: BorderRadius.only(
@@ -194,10 +164,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                     child: SafeArea(
                       child: Padding(
-                        padding: EdgeInsets.fromLTRB(20, 20, 20, 20),
+                        padding: EdgeInsets.all(20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
                           children: [
                             // Top Bar
                             Row(
@@ -213,7 +182,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                           color: Colors.white,
                                           fontSize: 28,
                                           fontWeight: FontWeight.bold,
-                                          letterSpacing: -0.5,
                                         ),
                                       ),
                                       SizedBox(height: 4),
@@ -222,7 +190,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                         style: TextStyle(
                                           color: Colors.white.withOpacity(0.8),
                                           fontSize: 14,
-                                          fontWeight: FontWeight.w400,
                                         ),
                                       ),
                                     ],
@@ -268,12 +235,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.9),
                                 fontSize: 16,
-                                fontWeight: FontWeight.w400,
                               ),
                             ),
                             SizedBox(height: 20),
 
-                            // Modern Search Bar
+                            // Search Bar
                             Container(
                               height: 56,
                               decoration: BoxDecoration(
@@ -300,17 +266,17 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                                     color: Color(0xFF2563EB),
                                     size: 24,
                                   ),
-                                  suffixIcon: Container(
-                                    margin: EdgeInsets.all(8),
-                                    decoration: BoxDecoration(
-                                      color: Color(0xFF2563EB),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Icon(
-                                      Icons.tune_rounded,
-                                      color: Colors.white,
-                                      size: 20,
-                                    ),
+                                  suffixIcon: _searchQuery.isNotEmpty
+                                      ? IconButton(
+                                    icon: Icon(Icons.clear, color: Colors.grey),
+                                    onPressed: () {
+                                      _searchController.clear();
+                                    },
+                                  )
+                                      : Icon(
+                                    Icons.tune_rounded,
+                                    color: Color(0xFF2563EB),
+                                    size: 20,
                                   ),
                                   border: InputBorder.none,
                                   contentPadding: EdgeInsets.symmetric(
@@ -332,17 +298,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 ),
               ),
 
-              // Sticky Filters Section - FIXED HEIGHT
+              // Filters Section
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _SliverFilterDelegate(
-                  minHeight: 114, // Increased from 110 to 114
-                  maxHeight: 114, // Increased from 110 to 114
+                  minHeight: 114,
+                  maxHeight: 114,
                   child: Container(
                     color: Color(0xFFF8FAFF),
-                    padding: EdgeInsets.symmetric(vertical: 8), // Reduced from 12 to 8
+                    padding: EdgeInsets.symmetric(vertical: 8),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
                       children: [
                         // Stats Cards
                         Padding(
@@ -350,93 +315,30 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           child: Row(
                             children: [
                               Expanded(
-                                child: Container(
-                                  height: 38, // Reduced from 40 to 38
-                                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6), // Reduced vertical padding
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        '${jobs.length}',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF2563EB),
-                                        ),
-                                      ),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'Jobs',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                child: _buildStatsCard(
+                                  '${_allJobs.length}',
+                                  'Jobs',
+                                  Icons.work_outline,
+                                  Color(0xFF2563EB),
                                 ),
                               ),
                               SizedBox(width: 12),
                               Expanded(
-                                child: Container(
-                                  height: 38, // Reduced from 40 to 38
-                                  padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6), // Reduced vertical padding
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    borderRadius: BorderRadius.circular(12),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.05),
-                                        blurRadius: 8,
-                                        offset: Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        '${jobs.where((job) => job.isUrgent).length}',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFFEF4444),
-                                        ),
-                                      ),
-                                      SizedBox(width: 4),
-                                      Text(
-                                        'Urgent',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey.shade600,
-                                          fontWeight: FontWeight.w500,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                child: _buildStatsCard(
+                                  '${_allJobs.where((job) => job.isUrgent).length}',
+                                  'Urgent',
+                                  Icons.priority_high,
+                                  Color(0xFFEF4444),
                                 ),
                               ),
                             ],
                           ),
                         ),
-
-                        SizedBox(height: 8), // Reduced from 10 to 8
+                        SizedBox(height: 8),
 
                         // Filter Chips
                         Container(
-                          height: 38, // Reduced from 40 to 38
+                          height: 38,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             padding: EdgeInsets.symmetric(horizontal: 20),
@@ -447,12 +349,14 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                               final isSelected = selectedFilter == filter;
                               return GestureDetector(
                                 onTap: () {
-                                  setState(() => selectedFilter = filter);
+                                  setState(() {
+                                    selectedFilter = filter;
+                                    _applyFilters();
+                                  });
                                 },
                                 child: AnimatedContainer(
                                   duration: Duration(milliseconds: 200),
-                                  curve: Curves.easeInOut,
-                                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 6), // Reduced vertical padding
+                                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                   decoration: BoxDecoration(
                                     gradient: isSelected
                                         ? LinearGradient(
@@ -497,7 +401,13 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           body: RefreshIndicator(
             onRefresh: _onRefresh,
             color: Color(0xFF2563EB),
-            child: CustomScrollView(
+            child: _isLoading
+                ? Center(
+              child: CircularProgressIndicator(
+                color: Color(0xFF2563EB),
+              ),
+            )
+                : CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
@@ -520,7 +430,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             borderRadius: BorderRadius.circular(15),
                           ),
                           child: Text(
-                            '${filteredJobs.length} jobs',
+                            '${_filteredJobs.length} jobs',
                             style: TextStyle(
                               color: Color(0xFF2563EB),
                               fontWeight: FontWeight.w600,
@@ -532,13 +442,47 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-                SliverList(
+                _filteredJobs.isEmpty
+                    ? SliverToBoxAdapter(
+                  child: Container(
+                    height: 200,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.work_off_outlined,
+                            size: 64,
+                            color: Colors.grey[400],
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'No jobs found',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey[600],
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Text(
+                            'Try adjusting your filters or search terms',
+                            style: TextStyle(
+                              color: Colors.grey[500],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+                    : SliverList(
                   delegate: SliverChildBuilderDelegate(
                         (context, index) {
-                      final job = filteredJobs[index];
+                      final job = _filteredJobs[index];
                       return Padding(
                         padding: EdgeInsets.fromLTRB(20, 8, 20, 8),
-                        child: ModernJobCard(
+                        child: JobCard(
                           job: job,
                           onTap: () => Navigator.push(
                             context,
@@ -549,10 +493,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                         ),
                       );
                     },
-                    childCount: filteredJobs.length,
+                    childCount: _filteredJobs.length,
                   ),
                 ),
-                // Add some bottom padding
                 SliverToBoxAdapter(
                   child: SizedBox(height: 20),
                 ),
@@ -560,6 +503,48 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatsCard(String value, String label, IconData icon, Color color) {
+    return Container(
+      height: 38,
+      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 16, color: color),
+          SizedBox(width: 6),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -596,12 +581,12 @@ class _SliverFilterDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-// Improved Modern Job Card Widget
-class ModernJobCard extends StatelessWidget {
+// Simplified Job Card Widget
+class JobCard extends StatelessWidget {
   final Job job;
   final VoidCallback onTap;
 
-  const ModernJobCard({
+  const JobCard({
     Key? key,
     required this.job,
     required this.onTap,
@@ -660,7 +645,6 @@ class ModernJobCard extends StatelessWidget {
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black87,
-                                  height: 1.2,
                                 ),
                               ),
                             ),

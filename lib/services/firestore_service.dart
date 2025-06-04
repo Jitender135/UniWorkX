@@ -1,8 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/job.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  // Existing methods...
   Future<void> addStudent(Map<String, dynamic> studentData) {
     return _db.collection('users').add(studentData);
   }
@@ -27,15 +29,10 @@ class FirestoreService {
         .get();
   }
 
-  /// Approves a pending company:
-  /// Moves company data to 'approved_companies' collection
-  /// Deletes from 'pending_companies'
-  /// Logs the activity
   Future<void> approveCompany(String id, Map<String, dynamic> companyData) async {
     final pendingCompanyRef = _db.collection('pending_companies').doc(id);
     final approvedCompaniesRef = _db.collection('approved_companies');
 
-    // Get the pending company data before deletion for logging
     final pendingDoc = await pendingCompanyRef.get();
     final pendingData = pendingDoc.data();
 
@@ -48,7 +45,6 @@ class FirestoreService {
 
     await batch.commit();
 
-    // Log activity after successful approval
     await logActivity(
       type: 'company_approved',
       activity: 'Company approved',
@@ -59,16 +55,12 @@ class FirestoreService {
     );
   }
 
-  /// Declines a pending company and logs the activity
   Future<void> declineCompany(String id) async {
-    // Get company data before deletion for logging
     final companyDoc = await _db.collection('pending_companies').doc(id).get();
     final companyData = companyDoc.data();
 
-    // Delete from pending companies
     await _db.collection('pending_companies').doc(id).delete();
 
-    // Log activity
     await logActivity(
       type: 'company_declined',
       activity: 'Company declined',
@@ -79,8 +71,6 @@ class FirestoreService {
     );
   }
 
-  /// Checks company status by email:
-  /// Returns 'pending', 'approved', or null
   Future<String?> getCompanyStatusByEmail(String email) async {
     final query = await _db
         .collection('pending_companies')
@@ -105,9 +95,191 @@ class FirestoreService {
     return null;
   }
 
-  // NEW METHODS FOR REAL-TIME DASHBOARD FUNCTIONALITY
+  // NEW JOB MANAGEMENT METHODS
 
-  /// Get approved companies stream for real-time dashboard
+  /// Post a new job to Firestore
+  Future<String> postJob(Job job) async {
+    try {
+      final docRef = await _db.collection('jobs').add(job.toMap());
+
+      // Log the job posting activity
+      await logActivity(
+        type: 'job_posted',
+        activity: 'New job posted',
+        additionalData: {
+          'jobId': docRef.id,
+          'jobTitle': job.title,
+          'company': job.company,
+          'companyId': job.companyId,
+        },
+      );
+
+      return docRef.id;
+    } catch (e) {
+      print('Error posting job: $e');
+      rethrow;
+    }
+  }
+
+  /// Get all active jobs stream for student dashboard
+  Stream<QuerySnapshot> getActiveJobs() {
+    return _db
+        .collection('jobs')
+        .where('isActive', isEqualTo: true)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  /// Get jobs by company ID
+  Stream<QuerySnapshot> getJobsByCompany(String companyId) {
+    return _db
+        .collection('jobs')
+        .where('companyId', isEqualTo: companyId)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  /// Get jobs with filters
+  Stream<QuerySnapshot> getFilteredJobs({
+    String? category,
+    String? location,
+    bool? isUrgent,
+    String? experienceLevel,
+  }) {
+    Query query = _db.collection('jobs').where('isActive', isEqualTo: true);
+
+    if (category != null && category != 'All') {
+      if (category == 'Urgent') {
+        query = query.where('isUrgent', isEqualTo: true);
+      } else if (category == 'Remote') {
+        query = query.where('location', isEqualTo: 'Remote');
+      } else {
+        query = query.where('category', isEqualTo: category);
+      }
+    }
+
+    if (location != null) {
+      query = query.where('location', isEqualTo: location);
+    }
+
+    if (isUrgent != null) {
+      query = query.where('isUrgent', isEqualTo: isUrgent);
+    }
+
+    if (experienceLevel != null) {
+      query = query.where('experienceLevel', isEqualTo: experienceLevel);
+    }
+
+    return query.orderBy('createdAt', descending: true).snapshots();
+  }
+
+  /// Search jobs by title or description
+  Future<List<Job>> searchJobs(String searchTerm) async {
+    try {
+      // Note: Firestore doesn't support full-text search natively
+      // This is a basic implementation. For better search, consider using Algolia or similar
+      final querySnapshot = await _db
+          .collection('jobs')
+          .where('isActive', isEqualTo: true)
+          .get();
+
+      final jobs = querySnapshot.docs
+          .map((doc) => Job.fromMap(doc.data(), doc.id))
+          .where((job) =>
+      job.title.toLowerCase().contains(searchTerm.toLowerCase()) ||
+          job.description.toLowerCase().contains(searchTerm.toLowerCase()) ||
+          job.company.toLowerCase().contains(searchTerm.toLowerCase()) ||
+          job.tags.any((tag) => tag.toLowerCase().contains(searchTerm.toLowerCase())))
+          .toList();
+
+      return jobs;
+    } catch (e) {
+      print('Error searching jobs: $e');
+      return [];
+    }
+  }
+
+  /// Update job status (activate/deactivate)
+  Future<void> updateJobStatus(String jobId, bool isActive) async {
+    try {
+      await _db.collection('jobs').doc(jobId).update({'isActive': isActive});
+
+      await logActivity(
+        type: 'job_status_updated',
+        activity: 'Job status updated',
+        additionalData: {
+          'jobId': jobId,
+          'isActive': isActive,
+        },
+      );
+    } catch (e) {
+      print('Error updating job status: $e');
+      rethrow;
+    }
+  }
+
+  /// Delete a job
+  Future<void> deleteJob(String jobId) async {
+    try {
+      await _db.collection('jobs').doc(jobId).delete();
+
+      await logActivity(
+        type: 'job_deleted',
+        activity: 'Job deleted',
+        additionalData: {
+          'jobId': jobId,
+        },
+      );
+    } catch (e) {
+      print('Error deleting job: $e');
+      rethrow;
+    }
+  }
+
+  /// Get job by ID
+  Future<Job?> getJobById(String jobId) async {
+    try {
+      final doc = await _db.collection('jobs').doc(jobId).get();
+      if (doc.exists) {
+        return Job.fromMap(doc.data()!, doc.id);
+      }
+      return null;
+    } catch (e) {
+      print('Error getting job: $e');
+      return null;
+    }
+  }
+
+  /// Get job statistics for company dashboard
+  Future<Map<String, int>> getJobStatistics(String companyId) async {
+    try {
+      final allJobs = await _db
+          .collection('jobs')
+          .where('companyId', isEqualTo: companyId)
+          .get();
+
+      final activeJobs = allJobs.docs.where((doc) => doc.data()['isActive'] == true).length;
+      final urgentJobs = allJobs.docs.where((doc) => doc.data()['isUrgent'] == true).length;
+      final totalJobs = allJobs.docs.length;
+
+      return {
+        'totalJobs': totalJobs,
+        'activeJobs': activeJobs,
+        'urgentJobs': urgentJobs,
+        'inactiveJobs': totalJobs - activeJobs,
+      };
+    } catch (e) {
+      print('Error getting job statistics: $e');
+      return {
+        'totalJobs': 0,
+        'activeJobs': 0,
+        'urgentJobs': 0,
+        'inactiveJobs': 0,
+      };
+    }
+  }
+
+  // Existing methods continue...
   Stream<QuerySnapshot> getApprovedCompanies() {
     return _db
         .collection('approved_companies')
@@ -115,14 +287,10 @@ class FirestoreService {
         .snapshots();
   }
 
-  /// Get all users stream (both students and companies) for real-time dashboard
   Stream<QuerySnapshot> getAllUsers() {
-    return _db
-        .collection('users')
-        .snapshots();
+    return _db.collection('users').snapshots();
   }
 
-  /// Get recent activities stream for real-time dashboard
   Stream<QuerySnapshot> getRecentActivities() {
     return _db
         .collection('activities')
@@ -131,7 +299,6 @@ class FirestoreService {
         .snapshots();
   }
 
-  /// Log activities for dashboard tracking
   Future<void> logActivity({
     required String type,
     required String activity,
@@ -149,7 +316,6 @@ class FirestoreService {
     }
   }
 
-  /// Log user registration activity (call this when students register)
   Future<void> logUserRegistration(String userId, String userType) async {
     await logActivity(
       type: 'user_registered',
@@ -161,7 +327,6 @@ class FirestoreService {
     );
   }
 
-  /// Log company registration activity (call this when companies register)
   Future<void> logCompanyRegistration(String companyId, String companyName) async {
     await logActivity(
       type: 'company_registered',
@@ -173,29 +338,16 @@ class FirestoreService {
     );
   }
 
-  /// Enhanced addStudent method with activity logging
   Future<void> addStudentWithLogging(Map<String, dynamic> studentData) async {
     final docRef = await _db.collection('users').add(studentData);
-
-    // Log the user registration
-    await logUserRegistration(
-      docRef.id,
-      studentData['type'] ?? 'student',
-    );
+    await logUserRegistration(docRef.id, studentData['type'] ?? 'student');
   }
 
-  /// Enhanced addPendingCompany method with activity logging
   Future<void> addPendingCompanyWithLogging(Map<String, dynamic> companyData) async {
     final docRef = await _db.collection('pending_companies').add(companyData);
-
-    // Log the company registration
-    await logCompanyRegistration(
-      docRef.id,
-      companyData['name'] ?? 'Unknown Company',
-    );
+    await logCompanyRegistration(docRef.id, companyData['name'] ?? 'Unknown Company');
   }
 
-  /// Get total counts for dashboard (alternative method if streams are heavy)
   Future<Map<String, int>> getDashboardCounts() async {
     try {
       final pendingCompanies = await _db
@@ -203,18 +355,15 @@ class FirestoreService {
           .where('status', isEqualTo: 'pending')
           .get();
 
-      final approvedCompanies = await _db
-          .collection('approved_companies')
-          .get();
-
-      final totalUsers = await _db
-          .collection('users')
-          .get();
+      final approvedCompanies = await _db.collection('approved_companies').get();
+      final totalUsers = await _db.collection('users').get();
+      final totalJobs = await _db.collection('jobs').get();
 
       return {
         'pendingCompanies': pendingCompanies.docs.length,
         'approvedCompanies': approvedCompanies.docs.length,
         'totalUsers': totalUsers.docs.length,
+        'totalJobs': totalJobs.docs.length,
       };
     } catch (e) {
       print('Error getting dashboard counts: $e');
@@ -222,6 +371,7 @@ class FirestoreService {
         'pendingCompanies': 0,
         'approvedCompanies': 0,
         'totalUsers': 0,
+        'totalJobs': 0,
       };
     }
   }

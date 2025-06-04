@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/job.dart';
+import '../services/firestore_service.dart';
 import 'auth_screen.dart';  // Replace with your actual Auth/Login screen file
 
 // Define consistent color palette
@@ -798,6 +800,9 @@ class AddJobScreen extends StatefulWidget {
   _AddJobScreenState createState() => _AddJobScreenState();
 }
 
+
+
+
 class _AddJobScreenState extends State<AddJobScreen> with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
@@ -875,7 +880,9 @@ class _AddJobScreenState extends State<AddJobScreen> with SingleTickerProviderSt
     }
   }
 
-  void _postJob() {
+  // Add this method to your _AddJobScreenState class in the company dashboard
+
+  void _postJob() async {
     if (_formKey.currentState!.validate()) {
       if (_applicationDeadline == null) {
         _showSnackBar('Please select application deadline', Colors.red);
@@ -897,13 +904,72 @@ class _AddJobScreenState extends State<AddJobScreen> with SingleTickerProviderSt
         ),
       );
 
-      // Simulate API call
-      Future.delayed(Duration(seconds: 2), () {
+      try {
+        // Get current user info (you'll need to pass this from the parent widget)
+        final user = FirebaseAuth.instance.currentUser;
+        final companyId = user?.uid ?? 'unknown'; // Use actual company ID
+        final companyName = user?.displayName ?? 'Unknown Company'; // Use actual company name
+
+        // Create Job object
+        final job = Job(
+          title: _titleController.text.trim(),
+          company: companyName,
+          companyId: companyId,
+          pay: _payController.text.trim(),
+          location: _location,
+          duration: _duration,
+          description: _descriptionController.text.trim(),
+          tags: _extractTags(), // You'll need to implement this method
+          isUrgent: _makeFeatured, // Using featured as urgent for now
+          createdAt: DateTime.now(),
+          applicationDeadline: _applicationDeadline,
+          category: _category,
+          experienceLevel: _experienceLevel,
+          requirements: _requirementsController.text.trim().isNotEmpty
+              ? _requirementsController.text.trim()
+              : null,
+          responsibilities: _responsibilitiesController.text.trim().isNotEmpty
+              ? _responsibilitiesController.text.trim()
+              : null,
+          benefits: _benefitsController.text.trim().isNotEmpty
+              ? _benefitsController.text.trim()
+              : null,
+        );
+
+        // Post job to Firestore
+        final firestoreService = FirestoreService();
+        final jobId = await firestoreService.postJob(job);
+
         Navigator.pop(context); // Close loading dialog
         _showSnackBar('Job Posted Successfully! Students can now apply.', Colors.green);
         Navigator.pop(context); // Close add job screen
-      });
+
+      } catch (e) {
+        Navigator.pop(context); // Close loading dialog
+        _showSnackBar('Error posting job: ${e.toString()}', Colors.red);
+      }
     }
+  }
+
+// Add this helper method to extract tags from the job description or requirements
+  List<String> _extractTags() {
+    List<String> tags = [];
+
+    // Add category as a tag
+    tags.add(_category);
+
+    // Add location as a tag if it's remote
+    if (_location.toLowerCase().contains('remote')) {
+      tags.add('Remote');
+    }
+
+    // Add experience level as a tag
+    tags.add(_experienceLevel);
+
+    // You can add more sophisticated tag extraction logic here
+    // For example, extract common keywords from requirements or description
+
+    return tags;
   }
 
   void _saveDraft() {
